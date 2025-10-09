@@ -24,7 +24,32 @@ const products = [{
     count: 56
   },
   priceInCents: 799 //saved as cents for math purposes
-}];
+}, {
+  imageSrc: 'images/products/black-2-slot-toaster.jpg',
+  productName: '2 Slot Toaster - Black',
+  rating: {
+    stars: 5,
+    count: 2197
+  },
+  priceInCents: 1899 //saved as cents for math purposes
+}, {
+  imageSrc: 'images/products/6-piece-white-dinner-plate-set.jpg',
+  productName: '6-Piece White Dinner Plate Set',
+  rating: {
+    stars: 4,
+    count: 37
+  },
+  priceInCents: 2067 //saved as cents for math purposes
+}, {
+  imageSrc: 'images/products/6-piece-non-stick-baking-set.webp',
+  productName: '6-Piece Nonstick, Carbon Steel Oven Bakeware Set',
+  rating: {
+    stars: 4.5,
+    count: 175
+  },
+  priceInCents: 3499 //saved as cents for math purposes
+}
+];
 
 let productsHTML = '';
 
