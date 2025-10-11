@@ -3,6 +3,15 @@ console.log('javascript connected correctly');
 
 let productsHTML = '';
 
+//dynamically generate dropdown selector values
+function QuantityOptions(max = 10) {
+  let html = '';
+  for (let i = 1; i <= max; i++) {
+    html += `<option value="${i}" ${i === 1 ? 'selected' : ''}>${i}</option>`;
+  }
+  return html;
+}
+
 products.forEach((products) => {
   productsHTML += `
   <div class="product-container">
@@ -26,17 +35,8 @@ products.forEach((products) => {
         </div>
 
         <div class="product-quantity-container">
-          <select>
-            <option selected value="1">1</option>
-            <option value="2">2</option>
-            <option value="3">3</option>
-            <option value="4">4</option>
-            <option value="5">5</option>
-            <option value="6">6</option>
-            <option value="7">7</option>
-            <option value="8">8</option>
-            <option value="9">9</option>
-            <option value="10">10</option>
+          <select class="js-quantity-selector" data-product-id="${products.id}">
+          ${QuantityOptions(10)}
           </select>
         </div>
 
@@ -61,6 +61,13 @@ document.querySelectorAll('.js-add-to-cart').forEach((button) => {
   button.addEventListener('click', () => {
     const productId = button.dataset.productId;
 
+    //find the closest product card and its matching dropdown.  this
+    //located the closest dropdown, to a product, based upon the location within the code itself. (look more into this) 
+    const container = button.closest('.product-container');
+    const qtySelect = container.querySelector('.js-quantity-selector');
+    const selectedQty = Number(qtySelect?.value ?? 1);
+
+    //find matching item in the cart
     let matchingItem;
 
     cart.forEach((item) => {
@@ -70,20 +77,48 @@ document.querySelectorAll('.js-add-to-cart').forEach((button) => {
     });
 
     if (matchingItem) {
-      matchingItem.quantity += 1;
+      matchingItem.quantity += selectedQty;
     } else {
       cart.push({
         productId: productId,
-        quantity: 1
+        quantity: selectedQty
       });
     }
+    /*
+        let cartQuantity = 0;
+    
+        cart.forEach((item) => {
+          cartQuantity += item.quantity;
+        });
+        document.querySelector('.js-cart-quantity').innerHTML = cartQuantity
+      });
+      */
 
-    let cartQuantity = 0;
+    //same as above, but cleaner and less code
+    // Recalculate total items in cart (fix: use sum + item.quantity)
+    const cartQuantity = cart.reduce((sum, item) => {
+      const q = Number(item?.quantity);
+      return Number.isFinite(q) ? sum + q : sum;
+    }, 0);
 
-    cart.forEach((item) => {
-      cartQuantity += item.quantity;
-    });
     document.querySelector('.js-cart-quantity').innerHTML = cartQuantity
+
+    console.log(cart);
+    console.log(cartQuantity);
+
+    /*
+    How it works:
+    cart.reduce() loops through each item in the array.
+    sum starts at 0 (that’s the second argument in reduce).
+    On each loop, sum + item.quantity returns the running total.
+    When done, it returns the final total.
+    */
   });
 });
+
+
+//Item Quantity Selector
+//let itemQuantity = document.querySelector('.product-quantity');
+
+
 
