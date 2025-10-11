@@ -1,5 +1,5 @@
 console.log('javascript connected correctly');
-import { cart } from '../data/cart.js';
+import { cart, AddToCart } from '../data/cart.js';
 import { products } from '../data/products.js';
 
 let productsHTML = '';
@@ -58,6 +58,38 @@ products.forEach((products) => {
 
 document.querySelector('.js-products-grid').innerHTML = productsHTML;
 
+function UpdateCartQty() {
+  /*
+      let cartQuantity = 0;
+  
+      cart.forEach((item) => {
+        cartQuantity += item.quantity;
+      });
+      document.querySelector('.js-cart-quantity').innerHTML = cartQuantity
+    });
+    */
+
+  //same as above, but cleaner and less code
+  // Recalculate total items in cart (fix: use sum + item.quantity)
+  const cartQuantity = cart.reduce((sum, cartItem) => {
+    const q = Number(cartItem?.quantity);
+    return Number.isFinite(q) ? sum + q : sum;
+  }, 0);
+
+  document.querySelector('.js-cart-quantity').innerHTML = cartQuantity
+
+  console.log(cart);
+  console.log(cartQuantity);
+
+  /*
+  How it works:
+  cart.reduce() loops through each item in the array.
+  sum starts at 0 (that’s the second argument in reduce).
+  On each loop, sum + item.quantity returns the running total.
+  When done, it returns the final total.
+  */
+}
+
 document.querySelectorAll('.js-add-to-cart').forEach((button) => {
   button.addEventListener('click', () => {
     const productId = button.dataset.productId;
@@ -68,52 +100,9 @@ document.querySelectorAll('.js-add-to-cart').forEach((button) => {
     const qtySelect = container.querySelector('.js-quantity-selector');
     const selectedQty = Number(qtySelect?.value ?? 1);
 
-    //find matching item in the cart
-    let matchingItem;
+    AddToCart(productId, selectedQty);
+    UpdateCartQty();
 
-    cart.forEach((item) => {
-      if (productId === item.productId) {
-        matchingItem = item;
-      }
-    });
-
-    if (matchingItem) {
-      matchingItem.quantity += selectedQty;
-    } else {
-      cart.push({
-        productId: productId,
-        quantity: selectedQty
-      });
-    }
-    /*
-        let cartQuantity = 0;
-    
-        cart.forEach((item) => {
-          cartQuantity += item.quantity;
-        });
-        document.querySelector('.js-cart-quantity').innerHTML = cartQuantity
-      });
-      */
-
-    //same as above, but cleaner and less code
-    // Recalculate total items in cart (fix: use sum + item.quantity)
-    const cartQuantity = cart.reduce((sum, item) => {
-      const q = Number(item?.quantity);
-      return Number.isFinite(q) ? sum + q : sum;
-    }, 0);
-
-    document.querySelector('.js-cart-quantity').innerHTML = cartQuantity
-
-    console.log(cart);
-    console.log(cartQuantity);
-
-    /*
-    How it works:
-    cart.reduce() loops through each item in the array.
-    sum starts at 0 (that’s the second argument in reduce).
-    On each loop, sum + item.quantity returns the running total.
-    When done, it returns the final total.
-    */
   });
 });
 
