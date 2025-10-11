@@ -1,5 +1,5 @@
 console.log('javascript connected correctly');
-
+import { cart } from '../data/cart.js';
 
 let productsHTML = '';
 
