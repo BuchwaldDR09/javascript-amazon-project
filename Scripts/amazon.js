@@ -32,7 +32,7 @@ products.forEach((products) => {
         </div>
 
         <div class="product-price">
-          $${(products.priceCents / 100).toFixed(2)}
+          $${FormatCurrency(products.priceCents)}
         </div>
 
         <div class="product-quantity-container">
