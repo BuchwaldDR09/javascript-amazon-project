@@ -80,7 +80,7 @@ function UpdateCartQty() {
   document.querySelector('.js-cart-quantity').innerHTML = cartQuantity
 
   console.log(cart);
-  console.log(cartQuantity);
+  console.log('cartQuantity: ', cartQuantity);
 
   /*
   How it works:

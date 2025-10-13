@@ -2,6 +2,8 @@ import { cart, RemoveFromCart } from '../data/cart.js';
 import { products } from '../data/products.js';
 import { FormatCurrency } from './util/money.js';
 
+GetCartFromStorage();
+
 let cartSummaryHTML = '';
 
 cart.forEach((cartItem) => {
@@ -15,8 +17,6 @@ cart.forEach((cartItem) => {
       matchingProduct = product;
     }
   })
-
-  console.log(cartItem.quantity);
 
   cartSummaryHTML +=
 
@@ -96,7 +96,7 @@ document.querySelectorAll('.delete-quantity-link').forEach((link) => {
     //1. remove the product from the cart
     const productId = link.dataset.productId;
     RemoveFromCart(productId);
-    console.log(cart);
+    GetCartFromStorage();
     //2. update the html
 
     //Use the DOM to get the element to remove
@@ -107,3 +107,18 @@ document.querySelectorAll('.delete-quantity-link').forEach((link) => {
     container.remove();
   });
 });
+
+function GetCartFromStorage() {
+  let cart = JSON.parse(localStorage.getItem('cart'));
+  console.log('checkout cart: ', cart);
+
+  let qty = 0;
+  cart.forEach((cartItem) => {
+    qty += cartItem.quantity;
+    console.log('qty:', qty);
+
+    document.querySelector('.js-payment-summary-numOfItems').innerHTML = `Items (${qty}):`;
+
+    document.querySelector('.js-number-of-cart-items').innerHTML = `Checkout (<a class="return-to-home-link" href="amazon.html">${qty}</a>)`
+  })
+}
