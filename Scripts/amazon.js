@@ -1,9 +1,11 @@
 console.log('javascript connected correctly');
-import { cart, AddToCart } from '../data/cart.js';
+import { cart, AddToCart, CalculateCartQuantity } from '../data/cart.js';
 import { products } from '../data/products.js';
 import { FormatCurrency } from './util/money.js';
 
 let productsHTML = '';
+
+UpdateCartQty();
 
 //dynamically generate dropdown selector values
 function QuantityOptions(max = 10) {
@@ -60,35 +62,9 @@ products.forEach((products) => {
 document.querySelector('.js-products-grid').innerHTML = productsHTML;
 
 function UpdateCartQty() {
-  /*
-      let cartQuantity = 0;
-  
-      cart.forEach((item) => {
-        cartQuantity += item.quantity;
-      });
-      document.querySelector('.js-cart-quantity').innerHTML = cartQuantity
-    });
-    */
-
-  //same as above, but cleaner and less code
-  // Recalculate total items in cart (fix: use sum + item.quantity)
-  const cartQuantity = cart.reduce((sum, cartItem) => {
-    const q = Number(cartItem?.quantity);
-    return Number.isFinite(q) ? sum + q : sum;
-  }, 0);
-
-  document.querySelector('.js-cart-quantity').innerHTML = cartQuantity
-
-  console.log(cart);
-  console.log('cartQuantity: ', cartQuantity);
-
-  /*
-  How it works:
-  cart.reduce() loops through each item in the array.
-  sum starts at 0 (that’s the second argument in reduce).
-  On each loop, sum + item.quantity returns the running total.
-  When done, it returns the final total.
-  */
+  let qty = CalculateCartQuantity();
+  console.log(qty);
+  document.querySelector('.js-cart-quantity').innerHTML = qty;
 }
 
 document.querySelectorAll('.js-add-to-cart').forEach((button) => {
