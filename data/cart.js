@@ -1,91 +1,142 @@
 /* =============================================================
    CART MODULE
    -------------------------------------------------------------
-   This module handles all cart-related logic:
-   - loading & saving to localStorage
-   - adding, removing, and counting items
+   Purpose:
+   This module manages everything related to the shopping cart:
+   - Loading and saving to localStorage
+   - Adding and removing items
+   - Counting total quantity
+   - Updating delivery options
+   - Persisting all changes automatically
    ============================================================= */
-
-// Load the cart from localStorage (saved between page visits)
-export let cart = JSON.parse(localStorage.getItem('cart'));
 
 /* -------------------------------------------------------------
-   Initialize default cart (for testing)
+   1. LOAD CART FROM LOCAL STORAGE
    -------------------------------------------------------------
-   If no cart exists yet in localStorage, this gives us
-   some starter data so the site always has something to render.
+   The cart is stored as a JSON string in localStorage under the
+   key "cart". Here we parse it back into a JavaScript array.
+   If nothing exists yet (first visit), we’ll create a default
+   cart for testing and immediately save it.
 --------------------------------------------------------------*/
+export let cart = JSON.parse(localStorage.getItem('cart'));
+
 if (!cart) {
+  // Default items to make sure the site always has content
   cart = [
-    { productId: 'e43638ce-6aa0-4b85-b27f-e1d07eb678c6', quantity: 2, deliveryOptionId: '1' },
-    { productId: '15b6fc6f-327a-4ec4-896f-486349e85a3d', quantity: 1, deliveryOptionId: '2' }
+    {
+      productId: 'e43638ce-6aa0-4b85-b27f-e1d07eb678c6',
+      quantity: 2,
+      deliveryOptionId: '1'  // standard shipping (7 days)
+    },
+    {
+      productId: '15b6fc6f-327a-4ec4-896f-486349e85a3d',
+      quantity: 1,
+      deliveryOptionId: '2'  // express shipping (3 days)
+    }
   ];
-  SaveToStorage(); // save these defaults immediately
+
+  // Save defaults immediately so localStorage isn’t empty
+  PersistCart();
 }
 
 /* =============================================================
-   ADD TO CART
+   2. PERSIST CART
    -------------------------------------------------------------
-   Adds a product to the cart, or increases its quantity if it
-   already exists. Then saves the updated cart to localStorage.
+   Converts the cart array into a JSON string and saves it in
+   localStorage. This ensures the cart survives page reloads
+   and browser restarts.
    ============================================================= */
-export function AddToCart(productId, selectedQty) {
-  // Look for an existing matching item in the cart
-  let matchingItem = cart.find((item) => item.productId === productId);
-
-  if (matchingItem) {
-    // If found, increase quantity
-    matchingItem.quantity += selectedQty;
-  } else {
-    // If not found, push a new object
-    cart.push({ productId, quantity: selectedQty, deliveryOptionId: '1' });
-  }
-
-  // Persist changes
-  SaveToStorage();
-}
-
-/* =============================================================
-   REMOVE FROM CART
-   -------------------------------------------------------------
-   Removes a product by its ID.
-   Steps:
-   1. Create a new array excluding the removed product.
-   2. Replace the old cart with the new array.
-   3. Save the updated cart.
-   ============================================================= */
-export function RemoveFromCart(productId) {
-  const newCart = cart.filter((item) => item.productId !== productId);
-  cart = newCart;
-  SaveToStorage();
-}
-
-/* =============================================================
-   SAVE TO STORAGE (Private Helper)
-   -------------------------------------------------------------
-   Converts the cart array to a JSON string and saves it in
-   localStorage under the key 'cart'.
-   ============================================================= */
-function SaveToStorage() {
+export function PersistCart() {
   localStorage.setItem('cart', JSON.stringify(cart));
 }
 
 /* =============================================================
-   CALCULATE CART QUANTITY
+   3. ADD TO CART
    -------------------------------------------------------------
-   Returns the total number of items across all cart entries.
-   Ignores invalid or empty quantities.
+   Adds a product to the cart or increases its quantity if it
+   already exists.
+
+   Parameters:
+   - productId (string): ID of the product being added
+   - selectedQty (number): how many to add
+   ============================================================= */
+export function AddToCart(productId, selectedQty) {
+  // Find an existing cart item that matches the product
+  const existingItem = cart.find(item => item.productId === productId);
+
+  if (existingItem) {
+    // If found → just increase its quantity
+    existingItem.quantity += selectedQty;
+  } else {
+    // If not found → create a new cart entry
+    cart.push({
+      productId,
+      quantity: selectedQty,
+      deliveryOptionId: '1' // default shipping method
+    });
+  }
+
+  // Save updated cart to localStorage
+  PersistCart();
+}
+
+/* =============================================================
+   4. REMOVE FROM CART
+   -------------------------------------------------------------
+   Deletes a product from the cart by filtering out any item
+   whose productId matches the one passed in.
+
+   Parameter:
+   - productId (string): the ID to remove
+   ============================================================= */
+export function RemoveFromCart(productId) {
+  // Keep all items EXCEPT the one being removed
+  cart = cart.filter(item => item.productId !== productId);
+
+  // Save the updated cart
+  PersistCart();
+}
+
+/* =============================================================
+   5. CALCULATE TOTAL CART QUANTITY
+   -------------------------------------------------------------
+   Loops through the cart and sums all item quantities.
+   Ignores invalid, empty, or negative values.
+   Returns:
+   - (number): total quantity across all products
    ============================================================= */
 export function CalculateCartQuantity() {
-  let qty = 0;
+  let total = 0;
 
-  cart.forEach((item) => {
-    const amount = Number(item.quantity);
-    // Skip items with invalid quantities
-    if (!isNaN(amount) && amount > 0) {
-      qty += amount;
+  cart.forEach(item => {
+    const qty = Number(item.quantity);
+    if (!isNaN(qty) && qty > 0) {
+      total += qty;
     }
   });
 
-  return qty;
+  return total;
+}
+
+/* =============================================================
+   6. UPDATE DELIVERY OPTION
+   -------------------------------------------------------------
+   Updates which delivery method is selected for a given product.
+   This allows the user to switch shipping speeds in the checkout.
+
+   Parameters:
+   - productId (string): which item in the cart to update
+   - deliveryOptionId (string): the chosen shipping option (e.g. '1', '2', '3')
+   ============================================================= */
+export function UpdateDeliveryOption(productId, deliveryOptionId) {
+  // Find the matching item in the cart
+  const matchingItem = cart.find(item => item.productId === productId);
+
+  if (matchingItem) {
+    // Update the delivery option for that item
+    matchingItem.deliveryOptionId = deliveryOptionId;
+
+    // Save the change to localStorage
+    PersistCart();
+  }
 }

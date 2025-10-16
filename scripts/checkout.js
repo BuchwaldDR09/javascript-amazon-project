@@ -1,71 +1,87 @@
-// checkout.js
-// ======================================================================
-// CHECKOUT PAGE
-// - Renders cart items
-// - Lets you Update quantity (inline input → Save)
-// - Lets you Delete line items
-// - Lets you choose a Delivery Option per item (persists selection)
-// - Keeps header badges in sync (Items (#), Checkout (#))
-// ======================================================================
+/* =============================================================
+   CHECKOUT MODULE
+   -------------------------------------------------------------
+   Purpose:
+   Handles the entire checkout page — rendering the cart,
+   updating quantities, deleting items, choosing delivery
+   options, and keeping everything synced with localStorage.
+
+   Relies on:
+   - cart.js (cart data and helper functions)
+   - products.js (product info)
+   - deliveryOptions.js (shipping choices)
+   ============================================================= */
 
 console.log('checkout.js connected');
 
-import { cart, RemoveFromCart, CalculateCartQuantity } from '../data/cart.js';
+/* -------------------------------------------------------------
+   IMPORTS
+   ------------------------------------------------------------- */
+import {
+  cart,
+  RemoveFromCart,
+  CalculateCartQuantity,
+  UpdateDeliveryOption,
+  PersistCart
+} from '../data/cart.js';
+
 import { products } from '../data/products.js';
 import { FormatCurrency } from './util/money.js';
 import dayjs from 'https://unpkg.com/supersimpledev@8.5.0/dayjs/esm/index.js';
 import { deliveryOptions } from '../data/deliveryOptions.js';
 
-/* ======================================================================
-   UTILITIES
-   ====================================================================== */
-
-/** Persist the in-memory `cart` into localStorage. */
-function persistCart() {
-  localStorage.setItem('cart', JSON.stringify(cart));
-}
-
-/** Update the “Items (#)” and “Checkout (#)” labels on this page. */
+/* =============================================================
+   1. HEADER SUMMARY UPDATER
+   -------------------------------------------------------------
+   Updates the small header counters that show:
+   - "Items (#)" above the payment summary
+   - "Checkout (#)" at the top of the page
+   ============================================================= */
 export function GetCartFromStorage() {
   const qty = CalculateCartQuantity();
 
   const itemsEl = document.querySelector('.js-payment-summary-numOfItems');
   const headerEl = document.querySelector('.js-number-of-cart-items');
 
-  if (itemsEl) itemsEl.innerHTML = `Items (${qty}):`;
-  if (headerEl) headerEl.innerHTML = `Checkout (<a class="return-to-home-link" href="amazon.html">${qty}</a>)`;
+  if (itemsEl) {
+    itemsEl.innerHTML = `Items (${qty}):`;
+  }
+
+  if (headerEl) {
+    headerEl.innerHTML = `Checkout (<a class="return-to-home-link" href="amazon.html">${qty}</a>)`;
+  }
 }
 
-/** Given a deliveryOptionId, return the option object. */
+/* =============================================================
+   2. DELIVERY OPTION HELPERS
+   -------------------------------------------------------------
+   These small helpers are used to:
+   - Find a delivery option by ID
+   - Format its estimated arrival date
+   ============================================================= */
 function getDeliveryOption(deliveryOptionId) {
   return deliveryOptions.find(o => o.id === deliveryOptionId);
 }
 
-/** Given a deliveryOptionId, return a human-friendly date string. */
 function formatArrivalDate(deliveryOptionId) {
   const opt = getDeliveryOption(deliveryOptionId);
-  const days = opt ? opt.deliveryDays : 7;
+  const days = opt ? opt.deliveryDays : 7; // fallback to 7 days
   return dayjs().add(days, 'days').format('dddd, MMMM D');
 }
 
-/* ======================================================================
-   RENDER HELPERS
-   ====================================================================== */
-
-/**
- * Build the delivery options HTML for one product row.
- * - Preselects the radio whose id === cartItem.deliveryOptionId
- * - Shows date (computed) and price (FREE or formatted)
- */
+/* =============================================================
+   3. RENDER DELIVERY OPTIONS HTML
+   -------------------------------------------------------------
+   Creates the radio-button list of delivery options
+   for each product in the cart.
+   ============================================================= */
 function deliveryOptionsHTML(productId, selectedDeliveryOptionId) {
-  let html = '';
-
-  deliveryOptions.forEach((opt, idx) => {
+  return deliveryOptions.map(opt => {
     const dateText = dayjs().add(opt.deliveryDays, 'days').format('dddd, MMMM D');
     const priceText = opt.priceCents === 0 ? 'FREE' : `${FormatCurrency(opt.priceCents)}`;
-    const isChecked = opt.id === selectedDeliveryOptionId ? 'checked' : '';
+    const checked = opt.id === selectedDeliveryOptionId ? 'checked' : '';
 
-    html += `
+    return `
       <div class="delivery-option">
         <input
           type="radio"
@@ -73,7 +89,7 @@ function deliveryOptionsHTML(productId, selectedDeliveryOptionId) {
           name="delivery-option-${productId}"
           data-product-id="${productId}"
           data-delivery-option-id="${opt.id}"
-          ${isChecked}
+          ${checked}
         >
         <div>
           <div class="delivery-option-date">${dateText}</div>
@@ -81,168 +97,181 @@ function deliveryOptionsHTML(productId, selectedDeliveryOptionId) {
         </div>
       </div>
     `;
-  });
-
-  return html;
+  }).join('');
 }
 
-/* ======================================================================
-   RENDER: Build the cart list UI
-   ====================================================================== */
-
+/* =============================================================
+   4. RENDER CART SUMMARY
+   -------------------------------------------------------------
+   Builds all cart items on the page, including:
+   - Image, name, price
+   - Quantity and edit controls
+   - Delivery options (radio inputs)
+   - Delivery date display
+   ============================================================= */
 function renderCartSummary() {
-  // Speed: map product.id → product
+  // Create a fast lookup table for products by ID
   const productById = new Map(products.map(p => [p.id, p]));
   let html = '';
 
-  cart.forEach((cartItem) => {
-    const productId = cartItem.productId;
-    const product = productById.get(productId);
-    if (!product) return; // defensive: unknown id
+  cart.forEach(item => {
+    const product = productById.get(item.productId);
+    if (!product) return; // skip if product not found
 
-    // Delivery date line reflects the **current** selection on this row
-    const arrivalText = formatArrivalDate(cartItem.deliveryOptionId);
+    // Compute current arrival date based on deliveryOptionId
+    const arrivalText = formatArrivalDate(item.deliveryOptionId);
 
     html += `
       <div class="cart-item-container js-cart-item-container-${product.id}">
-        <div class="delivery-date js-row-delivery-date">Delivery date: ${arrivalText}</div>
+        <div class="delivery-date js-row-delivery-date">
+          Delivery date: ${arrivalText}
+        </div>
 
         <div class="cart-item-details-grid">
+          <!-- Product image -->
           <img class="product-image" src="${product.image}" alt="${product.productName}">
 
+          <!-- Product details -->
           <div class="cart-item-details">
             <div class="product-name">${product.productName}</div>
             <div class="product-price">${FormatCurrency(product.priceCents)}</div>
 
             <div class="product-quantity">
-              <span>
-                Quantity: <span class="quantity-label">${cartItem.quantity}</span>
-              </span>
+              <!-- Quantity label -->
+              <span>Quantity: <span class="quantity-label">${item.quantity}</span></span>
 
-              <!-- Update (visible) -->
-              <span
-                class="update-quantity-link link-primary js-update-quantity-link"
-                data-product-id="${product.id}"
-              >Update</span>
+              <!-- Update link (default visible) -->
+              <span class="update-quantity-link link-primary js-update-quantity-link"
+                    data-product-id="${product.id}">Update</span>
 
-              <!-- Inline input (hidden) -->
-              <input
-                type="number"
-                min="1"
-                class="js-edit-quantity-input hidden"
-                style="width:56px; margin-left:8px;"
-              >
+              <!-- Quantity input (hidden until "Update" clicked) -->
+              <input type="number" min="1"
+                     class="js-edit-quantity-input hidden"
+                     style="width:56px; margin-left:8px;">
 
-              <!-- Save (hidden) -->
-              <span
-                class="save-quantity-link link-primary js-save-quantity-link hidden"
-                data-product-id="${product.id}"
-              >Save</span>
+              <!-- Save link (hidden until editing) -->
+              <span class="save-quantity-link link-primary js-save-quantity-link hidden"
+                    data-product-id="${product.id}">Save</span>
 
-              <!-- Delete -->
-              <span
-                class="delete-quantity-link link-primary js-delete-quantity-link"
-                data-product-id="${product.id}"
-              >Delete</span>
+              <!-- Delete link -->
+              <span class="delete-quantity-link link-primary js-delete-quantity-link"
+                    data-product-id="${product.id}">Delete</span>
             </div>
           </div>
 
+          <!-- Delivery options -->
           <div class="delivery-options">
             <div class="delivery-options-title">Choose a delivery option:</div>
-            ${deliveryOptionsHTML(productId, cartItem.deliveryOptionId)}
+            ${deliveryOptionsHTML(product.id, item.deliveryOptionId)}
           </div>
         </div>
       </div>
     `;
   });
 
+  // Insert built HTML into the DOM
   const list = document.querySelector('.js-order-summary');
   if (!list) {
-    console.warn('Missing .js-order-summary container on this page.');
+    console.warn('Missing .js-order-summary container.');
     return;
   }
 
   list.innerHTML = html;
-
-  // Keep badges in sync when we re-render.
-  GetCartFromStorage();
+  GetCartFromStorage(); // update header counts
 }
 
-/* ======================================================================
-   EVENTS (delegated)
-   ====================================================================== */
+/* =============================================================
+   5. EVENT HANDLERS
+   -------------------------------------------------------------
+   These control interactions for:
+   - Deleting items
+   - Updating quantities
+   - Saving new quantities
+   - Changing delivery options
+   ============================================================= */
 
-/** DELETE — remove from data, persist, update badges, remove DOM node */
+/* ---------------------------
+   DELETE ITEM
+----------------------------*/
 document.addEventListener('click', (e) => {
   const del = e.target.closest('.js-delete-quantity-link');
   if (!del) return;
 
   const productId = del.dataset.productId;
-  if (!productId) return;
+  RemoveFromCart(productId);     // handled inside cart.js
+  GetCartFromStorage();          // update header
 
-  RemoveFromCart(productId); // persists inside your module
-  GetCartFromStorage();
-
+  // Remove from DOM
   const container = del.closest('.cart-item-container');
   if (container) container.remove();
 });
 
-/** UPDATE/SAVE — toggle edit mode and commit new quantity */
+/* ---------------------------
+   UPDATE → ENTER EDIT MODE
+----------------------------*/
 document.addEventListener('click', (e) => {
-  // UPDATE clicked → enter edit mode
-  const updateLink = e.target.closest('.js-update-quantity-link');
-  if (updateLink) {
-    const row = updateLink.closest('.product-quantity');
-    const deleteL = row.querySelector('.js-delete-quantity-link');
-    const saveL = row.querySelector('.js-save-quantity-link');
-    const input = row.querySelector('.js-edit-quantity-input');
-    const qtyLabel = row.querySelector('.quantity-label');
+  const update = e.target.closest('.js-update-quantity-link');
+  if (!update) return;
 
-    input.value = Number(qtyLabel.textContent) || 1;
+  const row = update.closest('.product-quantity');
+  const del = row.querySelector('.js-delete-quantity-link');
+  const save = row.querySelector('.js-save-quantity-link');
+  const input = row.querySelector('.js-edit-quantity-input');
+  const label = row.querySelector('.quantity-label');
 
-    updateLink.classList.add('hidden');
-    deleteL.classList.add('hidden');
-    saveL.classList.remove('hidden');
-    input.classList.remove('hidden');
+  // Prefill current quantity
+  input.value = Number(label.textContent) || 1;
 
-    input.focus();
-    input.select();
-    input.onkeydown = (ev) => { if (ev.key === 'Enter') saveL.click(); };
-    return;
-  }
+  // Show input + save, hide update + delete
+  update.classList.add('hidden');
+  del.classList.add('hidden');
+  save.classList.remove('hidden');
+  input.classList.remove('hidden');
 
-  // SAVE clicked → persist quantity and exit edit mode
-  const saveLink = e.target.closest('.js-save-quantity-link');
-  if (saveLink) {
-    const productId = saveLink.dataset.productId;
+  // Focus for convenience
+  input.focus();
+  input.select();
 
-    const row = saveLink.closest('.product-quantity');
-    const updateL = row.querySelector('.js-update-quantity-link');
-    const deleteL = row.querySelector('.js-delete-quantity-link');
-    const input = row.querySelector('.js-edit-quantity-input');
-    const qtyLabel = row.querySelector('.quantity-label');
-
-    // Update in-memory cart
-    const newQty = Math.max(1, Number(input.value) || 1);
-    const item = cart.find(i => i.productId === productId);
-    if (item) item.quantity = newQty;
-
-    // Persist + update header
-    persistCart();
-    GetCartFromStorage();
-
-    // Reflect in UI
-    qtyLabel.textContent = newQty;
-
-    // Exit edit mode
-    saveLink.classList.add('hidden');
-    input.classList.add('hidden');
-    updateL.classList.remove('hidden');
-    deleteL.classList.remove('hidden');
-  }
+  // Allow "Enter" to act as save
+  input.onkeydown = (ev) => {
+    if (ev.key === 'Enter') save.click();
+  };
 });
 
-/** DELIVERY OPTION CHANGE — set deliveryOptionId and refresh date text */
+/* ---------------------------
+   SAVE → APPLY NEW QUANTITY
+----------------------------*/
+document.addEventListener('click', (e) => {
+  const save = e.target.closest('.js-save-quantity-link');
+  if (!save) return;
+
+  const productId = save.dataset.productId;
+  const row = save.closest('.product-quantity');
+  const update = row.querySelector('.js-update-quantity-link');
+  const del = row.querySelector('.js-delete-quantity-link');
+  const input = row.querySelector('.js-edit-quantity-input');
+  const label = row.querySelector('.quantity-label');
+
+  const newQty = Math.max(1, Number(input.value) || 1);
+  const item = cart.find(i => i.productId === productId);
+
+  if (item) {
+    item.quantity = newQty;
+    PersistCart();        // ✅ centralized persistence from cart.js
+    GetCartFromStorage(); // refresh header count
+    label.textContent = newQty;
+  }
+
+  // Return to view mode
+  save.classList.add('hidden');
+  input.classList.add('hidden');
+  update.classList.remove('hidden');
+  del.classList.remove('hidden');
+});
+
+/* ---------------------------
+   DELIVERY OPTION CHANGE
+----------------------------*/
 document.addEventListener('change', (e) => {
   const input = e.target.closest('.js-delivery-option-input');
   if (!input) return;
@@ -250,25 +279,22 @@ document.addEventListener('change', (e) => {
   const productId = input.dataset.productId;
   const deliveryOptionId = input.dataset.deliveryOptionId;
 
-  // Update in-memory cart for that product
-  const item = cart.find(i => i.productId === productId);
-  if (item) item.deliveryOptionId = deliveryOptionId;
+  // ✅ use centralized helper from cart.js
+  UpdateDeliveryOption(productId, deliveryOptionId);
 
-  // Persist the cart
-  persistCart();
-
-  // Update the row's delivery date text to match the new selection
+  // Update that row's delivery date text
   const container = input.closest('.cart-item-container');
-  const dateLabelEl = container?.querySelector('.js-row-delivery-date');
-  if (dateLabelEl) {
-    dateLabelEl.textContent = `Delivery date: ${formatArrivalDate(deliveryOptionId)}`;
+  const dateEl = container?.querySelector('.js-row-delivery-date');
+  if (dateEl) {
+    dateEl.textContent = `Delivery date: ${formatArrivalDate(deliveryOptionId)}`;
   }
 });
 
-/* ======================================================================
-   BOOTSTRAP
-   ====================================================================== */
-
+/* =============================================================
+   6. INITIALIZATION
+   -------------------------------------------------------------
+   Runs once the DOM is ready — builds the cart display.
+   ============================================================= */
 document.addEventListener('DOMContentLoaded', () => {
   renderCartSummary();
 });
