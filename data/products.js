@@ -658,3 +658,20 @@ export const products = [
     ]
   }
 ];
+
+/* -------------------------------------------------------------
+   Internal index for O(1) product lookup
+   ------------------------------------------------------------- */
+const productIndex = new Map(products.map(p => [p.id, p]));
+
+/* -------------------------------------------------------------
+   getProduct(productId)
+   -------------------------------------------------------------
+   Returns the full product object for the given id, or null
+   if not found.
+   ------------------------------------------------------------- */
+export function getProduct(productId) {
+  // Old version you used returned `matchingProduct`.
+  // This version is the same idea, just faster (Map instead of forEach).
+  return productIndex.get(productId) || null;
+}
