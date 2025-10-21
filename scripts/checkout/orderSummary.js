@@ -16,14 +16,15 @@ import {
   PersistCart
 } from '../../data/cart.js';
 
-import { getProduct } from '../../data/products.js';   // ✅ only this now
+import { getProduct } from '../../data/products.js';
 import { FormatCurrency } from '../util/money.js';
 import dayjs from 'https://unpkg.com/supersimpledev@8.5.0/dayjs/esm/index.js';
 import { deliveryOptions, getDeliveryOption } from '../../data/deliveryOptions.js';
 import { renderPaymentSummary } from './paymentSummary.js';
 
 /* =============================================================
-   1. HEADER SUMMARY UPDATER
+   1) HEADER SUMMARY UPDATER
+   - Updates the small "Items (#)" label and the "Checkout (#)"
    ============================================================= */
 export function GetCartFromStorage() {
   const qty = CalculateCartQuantity();
@@ -31,14 +32,13 @@ export function GetCartFromStorage() {
   const itemsEl = document.querySelector('.js-payment-summary-label');
   const headerEl = document.querySelector('.js-number-of-cart-items');
 
-  if (itemsEl) itemsEl.innerHTML = `Items (${qty}):`;
+  if (itemsEl) itemsEl.textContent = `Items (${qty}):`; // safer than innerHTML
   if (headerEl) headerEl.innerHTML = `Checkout (<a class="return-to-home-link" href="amazon.html">${qty}</a>)`;
 }
 
 /* =============================================================
-   2. DELIVERY OPTION HELPERS
+   2) DELIVERY OPTION HELPERS
    ============================================================= */
-
 function formatArrivalDate(deliveryOptionId) {
   const opt = getDeliveryOption(deliveryOptionId);
   const days = opt ? opt.deliveryDays : 7;
@@ -46,7 +46,7 @@ function formatArrivalDate(deliveryOptionId) {
 }
 
 /* =============================================================
-   3. RENDER DELIVERY OPTIONS HTML
+   3) DELIVERY OPTIONS HTML (per product row)
    ============================================================= */
 function deliveryOptionsHTML(productId, selectedDeliveryOptionId) {
   return deliveryOptions.map(opt => {
@@ -74,15 +74,17 @@ function deliveryOptionsHTML(productId, selectedDeliveryOptionId) {
 }
 
 /* =============================================================
-   4. RENDER CART SUMMARY
+   4) RENDER CART SUMMARY (left column)
+   - Builds the product list rows and inserts into .js-order-summary
    ============================================================= */
 export function renderCartSummary() {
-  let totalShippingCost = (FormatCurrency(renderPaymentSummary.totalShippingCost))
+  // ❌ Remove: this was invalid and unused
+  // let totalShippingCost = FormatCurrency(renderPaymentSummary.totalShippingCost);
 
   let html = '';
 
   cart.forEach(item => {
-    const product = getProduct(item.productId); // ✅ Map-based helper
+    const product = getProduct(item.productId);
     if (!product) return;
 
     const arrivalText = formatArrivalDate(item.deliveryOptionId);
@@ -135,26 +137,37 @@ export function renderCartSummary() {
 
   list.innerHTML = html;
   GetCartFromStorage();
+  // (No need to call renderPaymentSummary() here; do it after actual mutations)
 }
 
 /* =============================================================
-   5. EVENT HANDLERS (delete, update/save qty, change shipping)
+   5) EVENT HANDLERS
+   - Delete item
+   - Enter edit mode
+   - Save new quantity
+   - Change delivery option
    ============================================================= */
 
-// DELETE
+// DELETE ITEM → persist + refresh totals
 document.addEventListener('click', (e) => {
   const del = e.target.closest('.js-delete-quantity-link');
   if (!del) return;
 
   const productId = del.dataset.productId;
-  RemoveFromCart(productId);
-  GetCartFromStorage();
 
+  RemoveFromCart(productId); // if this doesn't persist internally, keep the PersistCart() next line
+  PersistCart();
+
+  // Update header and totals
+  GetCartFromStorage();
+  renderPaymentSummary();
+
+  // Remove row from DOM
   const container = del.closest('.cart-item-container');
   if (container) container.remove();
 });
 
-// UPDATE → EDIT MODE
+// UPDATE → ENTER EDIT MODE
 document.addEventListener('click', (e) => {
   const update = e.target.closest('.js-update-quantity-link');
   if (!update) return;
@@ -180,7 +193,7 @@ document.addEventListener('click', (e) => {
   };
 });
 
-// SAVE QTY
+// SAVE → APPLY NEW QUANTITY → persist + refresh totals
 document.addEventListener('click', (e) => {
   const save = e.target.closest('.js-save-quantity-link');
   if (!save) return;
@@ -197,18 +210,20 @@ document.addEventListener('click', (e) => {
 
   if (item) {
     item.quantity = newQty;
-    PersistCart();
-    GetCartFromStorage();
+    PersistCart();          // write to localStorage
+    GetCartFromStorage();   // update header "Items (#)"
     label.textContent = newQty;
+    renderPaymentSummary(); // refresh right-side totals
   }
 
+  // Return to view mode
   save.classList.add('hidden');
   input.classList.add('hidden');
   update.classList.remove('hidden');
   del.classList.remove('hidden');
 });
 
-// SHIPPING CHANGE
+// DELIVERY OPTION CHANGE → persist + refresh totals
 document.addEventListener('change', (e) => {
   const input = e.target.closest('.js-delivery-option-input');
   if (!input) return;
@@ -216,15 +231,20 @@ document.addEventListener('change', (e) => {
   const productId = input.dataset.productId;
   const deliveryOptionId = input.dataset.deliveryOptionId;
 
+  // Update in-memory cart & persist
   UpdateDeliveryOption(productId, deliveryOptionId);
+  PersistCart();
 
+  // Update the delivery date text on that row (if present)
   const container = input.closest('.cart-item-container');
   const dateEl = container?.querySelector('.js-row-delivery-date');
   if (dateEl) {
     dateEl.textContent = `Delivery date: ${formatArrivalDate(deliveryOptionId)}`;
-    PersistCart();
-    GetCartFromStorage();
-    renderCartSummary();
-    renderPaymentSummary();
   }
+
+  // Always refresh header + totals (even if dateEl not found)
+  GetCartFromStorage();
+  renderPaymentSummary();
+
+  // No need to rebuild the entire left column here
 });
